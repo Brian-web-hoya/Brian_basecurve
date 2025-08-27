@@ -1,0 +1,148 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>基弧選擇器｜折射率 + 度數 → 基弧</title>
+  <style>
+    :root { --gap: 14px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", Roboto, Arial, "PingFang TC", "Microsoft JhengHei", "Heiti TC", sans-serif; margin: 0; padding: 24px; background: #f7f7fb; color: #222; }
+    .container { max-width: 860px; margin: 0 auto; }
+    h1 { font-size: 24px; margin: 0 0 12px 0; }
+    p.desc { margin: 0 0 20px 0; color: #555; }
+    .card { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,.05); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+    .field label { display:block; font-size: 13px; color:#555; margin-bottom:6px; }
+    .field input, .field select { width: 100%; padding: 12px 14px; font-size: 16px; border: 1px solid #ddd; border-radius: 12px; outline: none; background: #fff; }
+    .field input:focus, .field select:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,.12); }
+    .hint { font-size: 12px; color:#777; margin-top:6px; }
+    .actions { display:flex; gap: 10px; align-items:center; margin-top: 10px; }
+    button { padding: 10px 14px; border-radius: 12px; border: none; cursor: pointer; background: #4f46e5; color:#fff; font-size: 15px; box-shadow: 0 6px 14px rgba(79,70,229,.25); }
+    button.secondary { background:#e5e7eb; color:#111; box-shadow:none; }
+    .result { margin-top: 18px; padding: 16px; background:#f1f5f9; border-radius: 12px; }
+    .result h3 { margin: 0 0 6px 0; font-size: 18px; }
+    .result p { margin: 4px 0; }
+    .muted { color:#666; }
+    footer { margin-top: 24px; font-size:12px; color:#666; }
+    @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>基弧選擇器</h1>
+    <p class="desc">從 <b>折射率</b> 與 <b>度數（每 0.25D）</b> 快速查出建議 <b>基弧</b>。資料皆來自您提供的表格。</p>
+
+    <div class="card">
+      <div class="grid">
+        <div class="field">
+          <label for="index">折射率</label>
+          <select id="index"></select>
+          <div id="range" class="hint"></div>
+        </div>
+        <div class="field">
+          <label for="power">度數（D, 正=遠視 / 負=近視）</label>
+          <input id="power" type="number" step="0.25" inputmode="decimal" placeholder="例如：-3.25" />
+          <div class="hint">輸入值會自動四捨五入到最接近的 0.25D。</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="calc">查詢</button>
+        <button id="reset" class="secondary">清除</button>
+      </div>
+      <div id="out" class="result" style="display:none"></div>
+    </div>
+
+    <footer>※ 本工具僅據表格原始對應做建議，實際配鏡仍應由專業人員評估。</footer>
+  </div>
+
+  <script>
+    const MAPPING = {"1.5": {"6": "7.5", "5.75": "7.5", "5.5": "7.5", "5.25": "7.5", "5": "7.5", "4.75": "7.5", "4.5": "6.5", "4.25": "6.5", "4": "6.5", "3.75": "6.5", "3.5": "6.5", "3.25": "6.5", "3": "5.5", "2.75": "5.5", "2.5": "5.5", "2.25": "5.5", "2": "5.5", "1.75": "5.5", "1.5": "4.5", "1.25": "4.5", "1": "4.5", "0.75": "4.5", "0.5": "4.5", "0.25": "4.5", "0": "4.5", "-0.25": "4.5", "-0.5": "4.5", "-0.75": "4.5", "-1": "4.5", "-1.25": "4.5", "-1.5": "4.5", "-1.75": "4.5", "-2": "4.5", "-2.25": "3.5", "-2.5": "3.5", "-2.75": "3.5", "-3": "3.5", "-3.25": "3.5", "-3.5": "3.5", "-3.75": "3.5", "-4": "3.5", "-4.25": "3.5", "-4.5": "3.5", "-4.75": "3.5", "-5": "3.5", "-5.25": "3.5", "-5.5": "3.5", "-5.75": "3.5", "-6": "3.5", "-6.25": "2", "-6.5": "2", "-6.75": "2", "-7": "2", "-7.25": "2", "-7.5": "2", "-7.75": "2", "-8": "2"}, "1.6": {"8": "8.5", "7.75": "8.5", "7.5": "8.5", "7.25": "8.5", "7": "7.25", "6.75": "7.25", "6.5": "7.25", "6.25": "7.25", "6": "6.25", "5.75": "6.25", "5.5": "6.25", "5.25": "6.25", "5": "6.25", "4.75": "6.25", "4.5": "5.5", "4.25": "5.5", "4": "5.5", "3.75": "5.5", "3.5": "5.5", "3.25": "5.5", "3": "4.75", "2.75": "4.75", "2.5": "4.75", "2.25": "4.75", "2": "4.75", "1.75": "4.75", "1.5": "4", "1.25": "4", "1": "4", "0.75": "4", "0.5": "4", "0.25": "4", "0": "4", "-0.25": "4", "-0.5": "4", "-0.75": "4", "-1": "4", "-1.25": "4", "-1.5": "4", "-1.75": "4", "-2": "4", "-2.25": "3", "-2.5": "3", "-2.75": "3", "-3": "3", "-3.25": "3", "-3.5": "3", "-3.75": "3", "-4": "3", "-4.25": "3", "-4.5": "3", "-4.75": "3", "-5": "3", "-5.25": "3", "-5.5": "3", "-5.75": "3", "-6": "3", "-6.25": "1.5", "-6.5": "1.5", "-6.75": "1.5", "-7": "1.5", "-7.25": "1.5", "-7.5": "1.5", "-7.75": "1.5", "-8": "1.5", "-8.25": "1.5", "-8.5": "1.5", "-8.75": "1.5", "-9": "1.5", "-9.25": "1.5", "-9.5": "1.5", "-9.75": "1.5", "-10": "1.5"}, "1.67": {"8": "8.25", "7.75": "8.25", "7.5": "8.25", "7.25": "8.25", "7": "7", "6.75": "7", "6.5": "7", "6.25": "7", "6": "6", "5.75": "6", "5.5": "6", "5.25": "6", "5": "6", "4.75": "6", "4.5": "5.25", "4.25": "5.25", "4": "5.25", "3.75": "5.25", "3.5": "5.25", "3.25": "5.25", "3": "4.5", "2.75": "4.5", "2.5": "4.5", "2.25": "4.5", "2": "4.5", "1.75": "4.5", "1.5": "3.75", "1.25": "3.75", "1": "3.75", "0.75": "3.75", "0.5": "3.75", "0.25": "3.75", "0": "3.75", "-0.25": "3.75", "-0.5": "3.75", "-0.75": "3.75", "-1": "3.75", "-1.25": "3.75", "-1.5": "3.75", "-1.75": "3.75", "-2": "3.75", "-2.25": "3", "-2.5": "3", "-2.75": "3", "-3": "3", "-3.25": "3", "-3.5": "3", "-3.75": "3", "-4": "3", "-4.25": "3", "-4.5": "3", "-4.75": "3", "-5": "3", "-5.25": "3", "-5.5": "3", "-5.75": "3", "-6": "3", "-6.25": "2", "-6.5": "2", "-6.75": "2", "-7": "2", "-7.25": "2", "-7.5": "2", "-7.75": "2", "-8": "2", "-8.25": "2", "-8.5": "2", "-8.75": "2", "-9": "2", "-9.25": "2", "-9.5": "2", "-9.75": "2", "-10": "2"}, "1.74": {"8": "7.75", "7.75": "7.75", "7.5": "7.75", "7.25": "7.75", "7": "7.75", "6.75": "7.75", "6.5": "7.75", "6.25": "7.75", "6": "6.25", "5.75": "6.25", "5.5": "6.25", "5.25": "6.25", "5": "6.25", "4.75": "6.25", "4.5": "6.25", "4.25": "6.25", "4": "5.25", "3.75": "5.25", "3.5": "5.25", "3.25": "5.25", "3": "5.25", "2.75": "5.25", "2.5": "5.25", "2.25": "5.25", "2": "4.25", "1.75": "4.25", "1.5": "4.25", "1.25": "4.25", "1": "4.25", "0.75": "4.25", "0.5": "4.25", "0.25": "4.25", "0": "4.25", "-0.25": "4.25", "-0.5": "4.25", "-0.75": "4.25", "-1": "4.25", "-1.25": "4.25", "-1.5": "4.25", "-1.75": "4.25", "-2": "4.25", "-2.25": "3", "-2.5": "3", "-2.75": "3", "-3": "3", "-3.25": "3", "-3.5": "3", "-3.75": "3", "-4": "3", "-4.25": "3", "-4.5": "3", "-4.75": "3", "-5": "3", "-5.25": "3", "-5.5": "3", "-5.75": "3", "-6": "3", "-6.25": "2", "-6.5": "2", "-6.75": "2", "-7": "2", "-7.25": "2", "-7.5": "2", "-7.75": "2", "-8": "2", "-8.25": "2", "-8.5": "2", "-8.75": "2", "-9": "2", "-9.25": "2", "-9.5": "2", "-9.75": "2", "-10": "2", "-10.25": "1", "-10.5": "1", "-10.75": "1", "-11": "1", "-11.25": "1", "-11.5": "1", "-11.75": "1", "-12": "1", "-12.25": "1", "-12.5": "1", "-12.75": "1", "-13": "1"}};
+    const BOUNDS  = {"1.5": {"min": "-8", "max": "6", "count": 57}, "1.6": {"min": "-10", "max": "8", "count": 73}, "1.67": {"min": "-10", "max": "8", "count": 73}, "1.74": {"min": "-13", "max": "8", "count": 85}};
+
+    const indexSel = document.getElementById('index');
+    const powerInput = document.getElementById('power');
+    const rangeBox = document.getElementById('range');
+    const out = document.getElementById('out');
+
+    const indices = Object.keys(MAPPING).sort((a,b)=>parseFloat(a)-parseFloat(b));
+    for (const k of indices) {
+      const opt = document.createElement('option');
+      opt.value = k; opt.textContent = k;
+      indexSel.appendChild(opt);
+    }
+
+    function fmt(x) {
+      const r = Math.round(x*4)/4;
+      return Number.isInteger(r) ? String(parseInt(r,10)) : String(r).replace(/0+$/,'').replace(/\.$/, '');
+    }
+
+    function updateRange() {
+      const k = indexSel.value;
+      if (k && BOUNDS[k]) {
+        rangeBox.textContent = `可用度數範圍：${BOUNDS[k].min} ~ ${BOUNDS[k].max} D（共 ${BOUNDS[k].count} 筆）`;
+        powerInput.placeholder = `例如：-3.25（${BOUNDS[k].min} ~ ${BOUNDS[k].max}）`;
+      } else {
+        rangeBox.textContent = '';
+      }
+    }
+    indexSel.addEventListener('change', updateRange);
+    updateRange();
+
+    document.getElementById('reset').addEventListener('click', () => {
+      powerInput.value = '';
+      out.style.display = 'none';
+      out.innerHTML = '';
+      powerInput.focus();
+    });
+
+    function lookup() {
+      const idx = indexSel.value;
+      const raw = powerInput.value.trim();
+      if (!raw) {
+        out.style.display = 'block';
+        out.innerHTML = `<h3>請先輸入度數</h3><p class="muted">並確認折射率。</p>`;
+        return;
+      }
+      let val = Number(raw.replace(',', '.'));
+      if (Number.isNaN(val)) {
+        out.style.display = 'block';
+        out.innerHTML = `<h3>格式錯誤</h3><p class="muted">請輸入數字，例如 -3.25。</p>`;
+        return;
+      }
+      const k = fmt(val);
+      const table = MAPPING[idx] || {}
+      const match = table[k];
+
+      const keys = Object.keys(table).map(Number).sort((a,b)=>a-b);
+      let nearest = null;
+      if (keys.length) {
+        let bestDist = Infinity;
+        const target = Math.round(val*4)/4;
+        for (const x of keys) {
+          const d = Math.abs(x - target);
+          if (d < bestDist) { bestDist = d; nearest = x; }
+        }
+      }
+
+      out.style.display = 'block';
+      if (match) {
+        out.innerHTML = `<h3>建議基弧：<b>${match}</b></h3>
+          <p>折射率 <b>${idx}</b> ・ 度數 <b>${k} D</b></p>
+          <p class="muted">（精確對應自表格）</p>`;
+      } else if (nearest !== null) {
+        const nearestKey = fmt(nearest);
+        const alt = table[nearestKey];
+        out.innerHTML = `<h3>超出範圍</h3>
+          <p>找不到 <b>${k} D</b> 的對應；最接近的是 <b>${nearestKey} D</b> → 建議基弧 <b>${alt}</b></p>
+          <p>折射率 <b>${idx}</b> ・ 可用度數 <b>${BOUNDS[idx].min} ~ ${BOUNDS[idx].max} D</b></p>`;
+      } else {
+        out.innerHTML = `<h3>查無資料</h3><p class="muted">此折射率沒有任何對應資料。</p>`;
+      }
+    }
+
+    document.getElementById('calc').addEventListener('click', lookup);
+    powerInput.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') lookup(); });
+  </script>
+</body>
+</html>
